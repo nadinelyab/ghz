@@ -1035,7 +1035,51 @@ func WithStreamRecvMsgIntercept(fn StreamRecvMsgInterceptFunc) Option {
 	}
 }
 
-// WithStreamInterceptor specifies the stream interceptor
+// WithStreamInterceptor specifies the stream interceptor provider function
+//
+//	type ABCStreamInterceptor struct {
+//		MsgRcvCount  int
+//		MsgSendCount int
+//		MsgChan      string
+//	}
+//
+//	func (s *ABCStreamInterceptor) Send(callData *CallData) (*dynamic.Message, error) {
+//		  defer func() { s.MsgSendCount++ }()
+//	   switch s.MsgSendCount {
+//		  case 0:
+//		   	return dynamic.AsDynamicMessage("hello")
+//		  case 1:
+//	     name := <-s.MsgChan
+//		   	return dynamic.AsDynamicMessage(fmt.Sprintf("%s world", name))
+//		   }
+//	}
+//
+//	func (s *ABCStreamInterceptor) Recv(msg *dynamic.Message, err error) error {
+//		 if msg == nil {
+//		 	return err
+//		 }
+//		 s.MsgRcvCount++
+//
+//		 var reply string
+//		 err = msg.ConvertTo(reply)
+//		 if err != nil {
+//		 	return err
+//		 }
+//		 	switch s.MsgRcvCount {
+//		 	case 0:
+//		 		s.MsgChan <- reply
+//		 		return nil
+//		 	case 1:
+//		 		return runner.ErrEndStream
+//		 	}
+//	}
+//
+//	WithStreamInterceptorProviderFunc(func NewABCInterceptor() StreamInterceptor {
+//			return &ABCStreamInterceptor{
+//				MsgChan:          make(chan string, 1),
+//			}
+//		}
+//	})
 func WithStreamInterceptorProviderFunc(interceptor StreamInterceptorProviderFunc) Option {
 	return func(o *RunConfig) error {
 		o.streamInterceptorProviderFunc = interceptor
