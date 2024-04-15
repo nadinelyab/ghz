@@ -40,7 +40,8 @@ type Worker struct {
 	metadataProvider MetadataProviderFunc
 	msgProvider      StreamMessageProviderFunc
 
-	streamRecv StreamRecvMsgInterceptFunc
+	streamRecv        StreamRecvMsgInterceptFunc
+	streamInterceptor StreamInterceptor
 }
 
 func (w *Worker) runWorker() error {
@@ -115,6 +116,8 @@ func (w *Worker) makeRequest(tv TickValue) error {
 	var msgProvider StreamMessageProviderFunc
 	if w.msgProvider != nil {
 		msgProvider = w.msgProvider
+	} else if w.streamInterceptor != nil {
+		msgProvider = w.streamInterceptor.Send
 	} else if w.mtd.IsClientStreaming() {
 		if w.config.streamDynamicMessages {
 			mp, err := newDynamicMessageProvider(w.mtd, w.config.data, w.config.streamCallCount, !w.config.disableTemplateFuncs, !w.config.disableTemplateData)
@@ -388,6 +391,18 @@ func (w *Worker) makeServerStreamingRequest(ctx *context.Context, input *dynamic
 			}
 		}
 
+		if w.streamInterceptor != nil {
+			if converted, ok := res.(*dynamic.Message); ok {
+				err = w.streamInterceptor.Recv(converted, err)
+				if errors.Is(err, ErrEndStream) && !interceptCanceled {
+					interceptCanceled = true
+					err = nil
+
+					callCancel()
+				}
+			}
+		}
+
 		if err != nil {
 			if err == io.EOF {
 				err = nil
@@ -484,6 +499,19 @@ func (w *Worker) makeBidiRequest(ctx *context.Context,
 			if w.streamRecv != nil {
 				if converted, ok := res.(*dynamic.Message); ok {
 					iErr := w.streamRecv(converted, recvErr)
+					if errors.Is(iErr, ErrEndStream) && !interceptCanceled {
+						interceptCanceled = true
+						if len(cancel) == 0 {
+							cancel <- struct{}{}
+						}
+						recvErr = nil
+					}
+				}
+			}
+
+			if w.streamInterceptor != nil {
+				if converted, ok := res.(*dynamic.Message); ok {
+					iErr := w.streamInterceptor.Recv(converted, recvErr)
 					if errors.Is(iErr, ErrEndStream) && !interceptCanceled {
 						interceptCanceled = true
 						if len(cancel) == 0 {

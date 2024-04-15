@@ -388,18 +388,24 @@ func (b *Requester) runWorkers(wt load.WorkerTicker, p load.Pacer) error {
 						b.config.log.Debugw("Creating worker with ID: "+wID, "workerID", wID)
 					}
 
+					var streamInterceptor StreamInterceptor
+					if b.config.streamInterceptorProviderFunc != nil {
+						streamInterceptor = b.config.streamInterceptorProviderFunc()
+					}
+
 					w := Worker{
-						ticks:            ticks,
-						active:           true,
-						stub:             b.stubs[n],
-						mtd:              b.mtd,
-						config:           b.config,
-						stopCh:           make(chan bool),
-						workerID:         wID,
-						dataProvider:     b.dataProvider,
-						metadataProvider: b.metadataProvider,
-						streamRecv:       b.config.recvMsgFunc,
-						msgProvider:      b.config.dataStreamFunc,
+						ticks:             ticks,
+						active:            true,
+						stub:              b.stubs[n],
+						mtd:               b.mtd,
+						config:            b.config,
+						stopCh:            make(chan bool),
+						workerID:          wID,
+						dataProvider:      b.dataProvider,
+						metadataProvider:  b.metadataProvider,
+						streamRecv:        b.config.recvMsgFunc,
+						streamInterceptor: streamInterceptor,
+						msgProvider:       b.config.dataStreamFunc,
 					}
 
 					wc++ // increment worker id

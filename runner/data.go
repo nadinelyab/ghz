@@ -44,6 +44,13 @@ type StreamMessageProviderFunc func(*CallData) (*dynamic.Message, error)
 // Clients can return ErrEndStream to end the call early
 type StreamRecvMsgInterceptFunc func(*dynamic.Message, error) error
 
+type StreamInterceptorProviderFunc func() StreamInterceptor
+
+type StreamInterceptor interface {
+	Recv(*dynamic.Message, error) error
+	Send(*CallData) (*dynamic.Message, error)
+}
+
 type dataProvider struct {
 	binary   bool
 	data     []byte
