@@ -85,8 +85,10 @@ func (w *Worker) makeRequest(tv TickValue) error {
 
 	ctd := newCallData(w.mtd, w.workerID, reqNum, !w.config.disableTemplateFuncs, !w.config.disableTemplateData, w.config.funcs)
 
-	if w.streamInterceptorProviderFunc != nil {
-		w.streamInterceptor = w.streamInterceptorProviderFunc()
+	if w.mtd.IsClientStreaming() || w.mtd.IsServerStreaming() {
+		if w.streamInterceptorProviderFunc != nil {
+			w.streamInterceptor = w.streamInterceptorProviderFunc()
+		}
 	}
 
 	reqMD, err := w.metadataProvider(ctd)
