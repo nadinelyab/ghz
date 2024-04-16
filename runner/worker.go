@@ -40,8 +40,9 @@ type Worker struct {
 	metadataProvider MetadataProviderFunc
 	msgProvider      StreamMessageProviderFunc
 
-	streamRecv        StreamRecvMsgInterceptFunc
-	streamInterceptor StreamInterceptor
+	streamRecv                    StreamRecvMsgInterceptFunc
+	streamInterceptorProviderFunc StreamInterceptorProviderFunc
+	streamInterceptor             StreamInterceptor
 }
 
 func (w *Worker) runWorker() error {
@@ -83,6 +84,10 @@ func (w *Worker) makeRequest(tv TickValue) error {
 	reqNum := int64(tv.reqNumber)
 
 	ctd := newCallData(w.mtd, w.workerID, reqNum, !w.config.disableTemplateFuncs, !w.config.disableTemplateData, w.config.funcs)
+
+	if w.streamInterceptorProviderFunc != nil {
+		w.streamInterceptor = w.streamInterceptorProviderFunc()
+	}
 
 	reqMD, err := w.metadataProvider(ctd)
 	if err != nil {
