@@ -87,7 +87,7 @@ func (w *Worker) makeRequest(tv TickValue) error {
 
 	if w.mtd.IsClientStreaming() || w.mtd.IsServerStreaming() {
 		if w.streamInterceptorProviderFunc != nil {
-			w.streamInterceptor = w.streamInterceptorProviderFunc()
+			w.streamInterceptor = w.streamInterceptorProviderFunc(ctd)
 		}
 	}
 

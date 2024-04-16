@@ -45,7 +45,7 @@ type StreamMessageProviderFunc func(*CallData) (*dynamic.Message, error)
 type StreamRecvMsgInterceptFunc func(*dynamic.Message, error) error
 
 // StreamInterceptorProviderFunc is an interface for a function invoked to generate a stream interceptor
-type StreamInterceptorProviderFunc func() StreamInterceptor
+type StreamInterceptorProviderFunc func(*CallData) StreamInterceptor
 
 // StreamInterceptor is an interface for sending and receiving stream messages.
 // The interceptor can keep shared state for the send and receive calls.
