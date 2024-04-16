@@ -1044,38 +1044,43 @@ func WithStreamRecvMsgIntercept(fn StreamRecvMsgInterceptFunc) Option {
 //	}
 //
 //	func (s *ABCStreamInterceptor) Send(callData *CallData) (*dynamic.Message, error) {
-//		  defer func() { s.MsgSendCount++ }()
-//	   switch s.MsgSendCount {
-//		  case 0:
-//		   	return dynamic.AsDynamicMessage("hello")
-//		  case 1:
-//	     name := <-s.MsgChan
-//		   	return dynamic.AsDynamicMessage(fmt.Sprintf("%s world", name))
-//		   }
+//		 defer func() { s.MsgSendCount++ }()
+//	   	 switch s.MsgSendCount {
+//		 case 0:
+//		 	return dynamic.AsDynamicMessage("hello")
+//		 case 1:
+//	     	name := <-s.MsgChan
+//		   	return dynamic.AsDynamicMessage(name)
+//		 default:
+//			return fmt.Errorf("unknown msg send")
+//		 }
 //	}
 //
 //	func (s *ABCStreamInterceptor) Recv(msg *dynamic.Message, err error) error {
-//		 if msg == nil {
+//		if msg == nil {
 //		 	return err
-//		 }
-//		 s.MsgRcvCount++
+//		}
+//		s.MsgRcvCount++
 //
-//		 var reply string
-//		 err = msg.ConvertTo(reply)
-//		 if err != nil {
-//		 	return err
-//		 }
-//		 	switch s.MsgRcvCount {
-//		 	case 0:
-//		 		s.MsgChan <- reply
-//		 		return nil
-//		 	case 1:
-//		 		return runner.ErrEndStream
-//		 	}
+//		var reply string
+//		err = msg.ConvertTo(reply)
+//		if err != nil {
+//			return err
+//		}
+//
+//		switch s.MsgRcvCount {
+//		case 0:
+//		 	s.MsgChan <- reply
+//		 	return nil
+//		case 1:
+//			return runner.ErrEndStream
+//		default:
+//			return fmt.Errorf("unknown msg recv")
+//		}
 //	}
 //
 //	WithStreamInterceptorProviderFunc(func NewABCInterceptor() StreamInterceptor {
-//			return &ABCStreamInterceptor{
+//		return &ABCStreamInterceptor{
 //				MsgChan:          make(chan string, 1),
 //			}
 //		}
