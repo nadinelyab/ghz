@@ -124,8 +124,14 @@ func (w *Worker) makeRequest(tv TickValue) error {
 	if w.msgProvider != nil {
 		msgProvider = w.msgProvider
 	} else if streamInterceptor != nil {
+		if w.config.hasLog {
+			w.config.log.Debugw("Provider will be stream interceptor")
+		}
 		msgProvider = streamInterceptor.Send
 	} else if w.mtd.IsClientStreaming() {
+		if w.config.hasLog {
+			w.config.log.Debugw("Provider will be default")
+		}
 		if w.config.streamDynamicMessages {
 			mp, err := newDynamicMessageProvider(w.mtd, w.config.data, w.config.streamCallCount, !w.config.disableTemplateFuncs, !w.config.disableTemplateData)
 			if err != nil {
@@ -562,12 +568,11 @@ func (w *Worker) makeBidiRequest(ctx *context.Context,
 			}
 
 			if err != nil {
-				if errors.Is(err, ErrEndStream) {
-					err = nil
-				}
-
 				if w.config.hasLog {
 					w.config.log.Debugw("Msg Provider Err", "error", err)
+				}
+				if errors.Is(err, ErrEndStream) {
+					err = nil
 				}
 
 				closeStream()
