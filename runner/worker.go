@@ -42,7 +42,6 @@ type Worker struct {
 
 	streamRecv                    StreamRecvMsgInterceptFunc
 	streamInterceptorProviderFunc StreamInterceptorProviderFunc
-	streamInterceptor             StreamInterceptor
 }
 
 func (w *Worker) runWorker() error {
@@ -85,9 +84,10 @@ func (w *Worker) makeRequest(tv TickValue) error {
 
 	ctd := newCallData(w.mtd, w.workerID, reqNum, !w.config.disableTemplateFuncs, !w.config.disableTemplateData, w.config.funcs)
 
+	var streamInterceptor StreamInterceptor
 	if w.mtd.IsClientStreaming() || w.mtd.IsServerStreaming() {
 		if w.streamInterceptorProviderFunc != nil {
-			w.streamInterceptor = w.streamInterceptorProviderFunc(ctd)
+			streamInterceptor = w.streamInterceptorProviderFunc(ctd)
 		}
 	}
 
@@ -123,8 +123,8 @@ func (w *Worker) makeRequest(tv TickValue) error {
 	var msgProvider StreamMessageProviderFunc
 	if w.msgProvider != nil {
 		msgProvider = w.msgProvider
-	} else if w.streamInterceptor != nil {
-		msgProvider = w.streamInterceptor.Send
+	} else if streamInterceptor != nil {
+		msgProvider = streamInterceptor.Send
 	} else if w.mtd.IsClientStreaming() {
 		if w.config.streamDynamicMessages {
 			mp, err := newDynamicMessageProvider(w.mtd, w.config.data, w.config.streamCallCount, !w.config.disableTemplateFuncs, !w.config.disableTemplateData)
@@ -165,11 +165,11 @@ func (w *Worker) makeRequest(tv TickValue) error {
 
 	// RPC errors are handled via stats handler
 	if w.mtd.IsClientStreaming() && w.mtd.IsServerStreaming() {
-		_ = w.makeBidiRequest(&ctx, ctd, msgProvider)
+		_ = w.makeBidiRequest(&ctx, ctd, msgProvider, streamInterceptor)
 	} else if w.mtd.IsClientStreaming() {
 		_ = w.makeClientStreamingRequest(&ctx, ctd, msgProvider)
 	} else if w.mtd.IsServerStreaming() {
-		_ = w.makeServerStreamingRequest(&ctx, inputs[0])
+		_ = w.makeServerStreamingRequest(&ctx, inputs[0], streamInterceptor)
 	} else {
 		_ = w.makeUnaryRequest(&ctx, reqMD, inputs[0])
 	}
@@ -324,7 +324,7 @@ func (w *Worker) makeClientStreamingRequest(ctx *context.Context,
 	return nil
 }
 
-func (w *Worker) makeServerStreamingRequest(ctx *context.Context, input *dynamic.Message) error {
+func (w *Worker) makeServerStreamingRequest(ctx *context.Context, input *dynamic.Message, streamInterceptor StreamInterceptor) error {
 	var callOptions = []grpc.CallOption{}
 	if w.config.enableCompression {
 		callOptions = append(callOptions, grpc.UseCompressor(gzip.Name))
@@ -398,9 +398,9 @@ func (w *Worker) makeServerStreamingRequest(ctx *context.Context, input *dynamic
 			}
 		}
 
-		if w.streamInterceptor != nil {
+		if streamInterceptor != nil {
 			if converted, ok := res.(*dynamic.Message); ok {
-				err = w.streamInterceptor.Recv(converted, err)
+				err = streamInterceptor.Recv(converted, err)
 				if errors.Is(err, ErrEndStream) && !interceptCanceled {
 					interceptCanceled = true
 					err = nil
@@ -437,7 +437,7 @@ func (w *Worker) makeServerStreamingRequest(ctx *context.Context, input *dynamic
 }
 
 func (w *Worker) makeBidiRequest(ctx *context.Context,
-	ctd *CallData, messageProvider StreamMessageProviderFunc) error {
+	ctd *CallData, messageProvider StreamMessageProviderFunc, streamInterceptor StreamInterceptor) error {
 
 	var callOptions = []grpc.CallOption{}
 
@@ -516,9 +516,9 @@ func (w *Worker) makeBidiRequest(ctx *context.Context,
 				}
 			}
 
-			if w.streamInterceptor != nil {
+			if streamInterceptor != nil {
 				if converted, ok := res.(*dynamic.Message); ok {
-					iErr := w.streamInterceptor.Recv(converted, recvErr)
+					iErr := streamInterceptor.Recv(converted, recvErr)
 					if errors.Is(iErr, ErrEndStream) && !interceptCanceled {
 						interceptCanceled = true
 						if len(cancel) == 0 {
