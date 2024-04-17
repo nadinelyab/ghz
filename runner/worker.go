@@ -566,6 +566,10 @@ func (w *Worker) makeBidiRequest(ctx *context.Context,
 					err = nil
 				}
 
+				if w.config.hasLog {
+					w.config.log.Debugw("Msg Provider Err", "error", err)
+				}
+
 				closeStream()
 				break
 			}
