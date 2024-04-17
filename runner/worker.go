@@ -84,9 +84,16 @@ func (w *Worker) makeRequest(tv TickValue) error {
 
 	ctd := newCallData(w.mtd, w.workerID, reqNum, !w.config.disableTemplateFuncs, !w.config.disableTemplateData, w.config.funcs)
 
+	if w.config.hasLog {
+		w.config.log.Debugw("Streaming?", w.mtd.IsClientStreaming() || w.mtd.IsServerStreaming())
+	}
+
 	var streamInterceptor StreamInterceptor
 	if w.mtd.IsClientStreaming() || w.mtd.IsServerStreaming() {
 		if w.streamInterceptorProviderFunc != nil {
+			if w.config.hasLog {
+				w.config.log.Debugw("Creating stream interceptor")
+			}
 			streamInterceptor = w.streamInterceptorProviderFunc(ctd)
 		}
 	}
